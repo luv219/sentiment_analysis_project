@@ -456,19 +456,3 @@ Then run:
 ```bash
 uvicorn app.main:app --reload
 ```
-
-### Problem: `reviews.csv` not found
-
-The notebook will create a sample dataset automatically. For real results, add your own `reviews.csv` file in the notebook folder.
-
----
-
-## License
-
-This project is provided for learning and portfolio use. You may modify and extend it for personal, academic, or commercial purposes.
-
----
-
-## Author
-
-Created as an end-to-end NLP and Machine Learning project for sentiment classification of text reviews.

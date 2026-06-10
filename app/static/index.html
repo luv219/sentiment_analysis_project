@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentiment Analyser</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.10);
+      padding: 36px 32px;
+      max-width: 680px;
+      width: 100%;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 6px; }
+    p.sub { color: #555; font-size: .9rem; margin-bottom: 20px; }
+    textarea {
+      width: 100%; min-height: 130px;
+      padding: 12px 14px; font-size: 15px;
+      border: 1.5px solid #ccc; border-radius: 10px;
+      resize: vertical; transition: border-color .2s;
+    }
+    textarea:focus { outline: none; border-color: #4f46e5; }
+    .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+    button {
+      flex: 1; padding: 12px; border: none; border-radius: 10px;
+      font-size: 15px; cursor: pointer; font-weight: 600; transition: opacity .2s;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #analyseBtn { background: #4f46e5; color: #fff; }
+    #clearBtn   { background: #e5e7eb; color: #333; }
+    #result {
+      margin-top: 20px; padding: 18px; border-radius: 10px;
+      background: #f8f9fb; border-left: 4px solid #4f46e5;
+      font-size: 14px; display: none;
+    }
+    .badge {
+      display: inline-block; padding: 3px 12px; border-radius: 20px;
+      font-weight: 700; font-size: 16px; margin-left: 8px;
+    }
+    .positive { background: #d1fae5; color: #065f46; }
+    .negative { background: #fee2e2; color: #991b1b; }
+    .bar-wrap { margin-top: 10px; background: #e5e7eb; border-radius: 6px; height: 10px; }
+    .bar { height: 10px; border-radius: 6px; transition: width .6s ease; }
+    .err { color: #dc2626; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Sentiment Analyser</h1>
+  <p class="sub">Enter a product, movie, service, or app review to classify it.</p>
+  <textarea id="review" placeholder="Type or paste your review here…"></textarea>
+  <div class="btn-row">
+    <button id="analyseBtn" onclick="analyse()">Analyse</button>
+    <button id="clearBtn" onclick="clearAll()">Clear</button>
+  </div>
+  <div id="result"></div>
+</div>
+
+<script>
+  async function analyse() {
+    const text = document.getElementById("review").value.trim();
+    const res  = document.getElementById("result");
+    const btn  = document.getElementById("analyseBtn");
+    if (!text) { showMsg(res, "Please enter a review first.", true); return; }
+
+    btn.disabled = true;
+    btn.textContent = "Analysing…";
+    res.style.display = "none";
+
+    try {
+      const resp = await fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        showMsg(res, "API error: " + (err.detail || resp.statusText), true);
+        return;
+      }
+      const data = await resp.json();
+      const pct  = Math.round((data.confidence || 0) * 100);
+      const colour = data.prediction === "positive" ? "#10b981" : "#ef4444";
+      res.innerHTML = `
+        <div><strong>Prediction:</strong>
+          <span class="badge ${data.prediction}">${data.prediction.toUpperCase()}</span>
+        </div>
+        <div style="margin-top:10px"><strong>Confidence:</strong> ${pct}%</div>
+        <div class="bar-wrap" style="margin-top:6px">
+          <div class="bar" style="width:${pct}%; background:${colour}"></div>
+        </div>
+        <div style="margin-top:10px; color:#555; font-size:13px">
+          Positive: ${(data.pos_proba*100).toFixed(1)}% &nbsp;|&nbsp; Negative: ${(data.neg_proba*100).toFixed(1)}%
+        </div>`;
+      res.style.display = "block";
+    } catch (e) {
+      showMsg(res, "Network error: " + e, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Analyse";
+    }
+  }
+
+  function clearAll() {
+    document.getElementById("review").value = "";
+    const res = document.getElementById("result");
+    res.style.display = "none";
+  }
+
+  function showMsg(el, msg, isErr) {
+    el.innerHTML = `<span class="${isErr ? "err" : ""}">${msg}</span>`;
+    el.style.display = "block";
+  }
+
+  document.getElementById("review").addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.ctrlKey) analyse();
+  });
+</script>
+</body>
+</html>
